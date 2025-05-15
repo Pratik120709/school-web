@@ -1,0 +1,110 @@
+.select2-hidden-accessible.parsley-error  ~ .select2-container--default .select2-selection--single {
+    border-color: #f34943 !important;
+}
+
+.select2-hidden-accessible.parsley-success ~ .select2-container--default .select2-selection--single {
+    border-color: #31ce77 !important;
+}
+
+.custom-loader{
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: #ffffff;
+  z-index: 1100;
+  top: 0px;
+  left: 0px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0.7;
+  border: none;
+  margin: 0px;
+  padding: 0px;
+  height: 100%;
+  top: 0px;
+  cursor: wait;
+  position: fixed;
+}
+
+.hide-loader {
+  display:none;
+}
+
+.custom-loader-spinner {
+  width: 50px;
+  height: 50px;
+  display: grid;
+  border:4px solid #0000;
+  border-radius: 50%;
+  border-color:#FF3A6E #0000;
+  animation: s6 1s infinite linear;
+}
+.custom-loader-spinner::before,
+.custom-loader-spinner::after {    
+  content:"";
+  grid-area: 1/1;
+  margin:2px;
+  border:inherit;
+  border-radius: 50%;
+}
+.custom-loader-spinner::before {
+  border-color:#51459D #0000;
+  animation:inherit; 
+  animation-duration: .5s;
+  animation-direction: reverse;
+}
+.custom-loader-spinner::after {
+  margin:8px;
+}
+.modal-backdrop {
+  opacity: 0.7 !important;
+}
+#myModal {
+  align-items: center;
+  justify-content: center;
+  margin-top: 10%;
+}
+
+@keyframes s6 { 
+  100%{transform: rotate(1turn)}
+}
+
+.dataTables_filter{
+  text-align: left!important;
+}
+.datatable-custom-button{
+  position: absolute;
+  right: 20px;
+  z-index: 1;
+}
+
+/* Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.text-webkit-center{
+  text-align: -webkit-center;
+}
+.division-input{
+  width: 285px!important;
+}
+.region-card-image {
+  height: 300px; /* Adjust the height as needed */
+  width: 100%;
+  overflow: hidden;
+}
+
+.region-card-image img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover; /* Ensures the image covers the entire container */
+}
