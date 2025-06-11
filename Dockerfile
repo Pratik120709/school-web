@@ -1,39 +1,56 @@
 FROM php:8.2-apache
 
-# 1. Install system dependencies
+# System dependencies
 RUN apt-get update && apt-get install -y \
-    libpng-dev libjpeg-dev libfreetype-dev \
-    libzip-dev libonig-dev libxml2-dev unzip && \
-    apt-get clean
+    build-essential libpng-dev libjpeg62-turbo-dev \
+    libfreetype6-dev libwebp-dev libzip-dev zlib1g-dev \
+    libicu-dev libonig-dev libxml2-dev libsodium-dev \
+    git curl unzip && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# 2. Configure PHP extensions
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
-    docker-php-ext-install pdo_mysql mbstring gd zip opcache
+# PHP extensions
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp && \
+    docker-php-ext-configure intl && \
+    docker-php-ext-install -j$(nproc) \
+    gd pdo_mysql mbstring exif pcntl bcmath zip intl opcache sodium && \
+    docker-php-source delete
 
-# 3. Install Composer
+# Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# 4. Configure Apache (no external file needed)
-RUN a2enmod rewrite && \
-    echo "DocumentRoot /var/www/html/public" > /etc/apache2/sites-available/000-default.conf && \
-    echo "<Directory /var/www/html/public>" >> /etc/apache2/sites-available/000-default.conf && \
-    echo "    AllowOverride All" >> /etc/apache2/sites-available/000-default.conf && \
-    echo "    Require all granted" >> /etc/apache2/sites-available/000-default.conf && \
-    echo "</Directory>" >> /etc/apache2/sites-available/000-default.conf
+# Apache configuration
+RUN a2enmod rewrite
+RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
-# 5. Set working directory and copy files
+# Application setup
 WORKDIR /var/www/html
 COPY . .
 
-# 6. Install dependencies
+# PHP config
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" && \
+    echo "memory_limit = 512M" >> "$PHP_INI_DIR/conf.d/memory-limit.ini"
+
+# Install dependencies
 RUN composer install --optimize-autoloader --no-dev --ignore-platform-reqs
 
-# 7. Set permissions
+# Set permissions before running artisan commands
 RUN chown -R www-data:www-data storage bootstrap/cache && \
     chmod -R 775 storage bootstrap/cache
 
-# 8. Generate application key
-RUN php artisan key:generate
+# Create a temporary .env file for build
+RUN cp .env.example .env && \
+    sed -i 's/APP_KEY=.*/APP_KEY=base64:tmpkeyuntilruntime/' .env && \
+    php artisan key:generate && \
+    php artisan config:clear
+
+# The actual application key will be generated at runtime
+RUN rm .env
 
 EXPOSE 80
+
+# Runtime commands
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["apache2-foreground"]
