@@ -1,16 +1,32 @@
 # Use the official PHP 8.2 image with Apache
 FROM php:8.2-apache
 
-# Install dependencies
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
     curl \
     libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
     libonig-dev \
     libxml2-dev \
+    libzip-dev \
     zip \
     unzip \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PHP extensions
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install \
+    pdo_mysql \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd \
+    zip \
+    opcache \
+    sodium
 
 # Enable Apache rewrite module
 RUN a2enmod rewrite
@@ -24,8 +40,8 @@ WORKDIR /var/www/html
 # Copy Laravel files
 COPY . .
 
-# Install PHP dependencies
-RUN composer install --optimize-autoloader --no-dev
+# Install PHP dependencies (skip platform checks for extensions)
+RUN composer install --optimize-autoloader --no-dev --ignore-platform-reqs
 
 # Generate Laravel key
 RUN php artisan key:generate
