@@ -55,3 +55,4 @@ EXPOSE 10000
 
 # Start Apache (Render requires a persistent process)
 CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=10000"]
+
