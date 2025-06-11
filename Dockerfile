@@ -1,4 +1,3 @@
-# Use the official PHP 8.2 image with Apache
 FROM php:8.2-apache
 
 # Install system dependencies
@@ -6,7 +5,7 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     libpng-dev \
-    libjpeg-dev \
+    libjpeg62-turbo-dev \
     libfreetype6-dev \
     libonig-dev \
     libxml2-dev \
@@ -15,9 +14,9 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PHP extensions
+# Configure and install PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install \
+    && docker-php-ext-install -j$(nproc) \
     pdo_mysql \
     mbstring \
     exif \
@@ -28,8 +27,8 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     opcache \
     sodium
 
-# Enable Apache rewrite module
-RUN a2enmod rewrite
+# Enable Apache modules
+RUN a2enmod rewrite headers
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -37,22 +36,21 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy Laravel files
+# Copy application files
 COPY . .
 
-# Install PHP dependencies (skip platform checks for extensions)
+# Install dependencies (ignore platform requirements during build)
 RUN composer install --optimize-autoloader --no-dev --ignore-platform-reqs
 
-# Generate Laravel key
+# Generate application key
 RUN php artisan key:generate
 
-# Fix permissions
-RUN chown -R www-data:www-data /var/www/html/storage
-RUN chmod -R 775 /var/www/html/storage
+# Set permissions
+RUN chown -R www-data:www-data storage bootstrap/cache
+RUN chmod -R 775 storage bootstrap/cache
 
-# Expose port 10000 (Render's default)
+# Expose port
 EXPOSE 10000
 
-# Start Apache (Render requires a persistent process)
+# Start application
 CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=10000"]
-
