@@ -1,56 +1,68 @@
 FROM php:8.2-apache
 
-# Install system dependencies
+# System dependencies and tools
 RUN apt-get update && apt-get install -y \
-    git \
-    curl \
+    build-essential \
     libpng-dev \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
+    libwebp-dev \
+    libzip-dev \
+    zlib1g-dev \
+    libicu-dev \
     libonig-dev \
     libxml2-dev \
-    libzip-dev \
-    zip \
+    libsodium-dev \
+    git \
+    curl \
     unzip \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure and install PHP extensions
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+# PHP extensions installation with proper configuration
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-configure intl \
     && docker-php-ext-install -j$(nproc) \
+    gd \
     pdo_mysql \
     mbstring \
     exif \
     pcntl \
     bcmath \
-    gd \
     zip \
+    intl \
     opcache \
-    sodium
-
-# Enable Apache modules
-RUN a2enmod rewrite headers
+    sodium \
+    && docker-php-source delete
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Set working directory
-WORKDIR /var/www/html
+# Apache configuration
+RUN a2enmod rewrite
+COPY docker/000-default.conf /etc/apache2/sites-available/000-default.conf
 
-# Copy application files
+# Application directory setup
+WORKDIR /var/www/html
 COPY . .
 
-# Install dependencies (ignore platform requirements during build)
+# Environment configuration
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
+    && echo "memory_limit = 512M" >> "$PHP_INI_DIR/conf.d/memory-limit.ini"
+
+# Install dependencies with platform requirement checks disabled
 RUN composer install --optimize-autoloader --no-dev --ignore-platform-reqs
 
-# Generate application key
-RUN php artisan key:generate
+# Generate application key and optimize
+RUN php artisan key:generate \
+    && php artisan optimize:clear \
+    && php artisan config:cache \
+    && php artisan route:cache \
+    && php artisan view:cache
 
-# Set permissions
-RUN chown -R www-data:www-data storage bootstrap/cache
-RUN chmod -R 775 storage bootstrap/cache
+# Set proper permissions
+RUN chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
 
-# Expose port
-EXPOSE 10000
-
-# Start application
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=10000"]
+EXPOSE 80
+CMD ["apache2-foreground"]
