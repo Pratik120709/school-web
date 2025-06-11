@@ -34,16 +34,23 @@ RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" && \
 # Install dependencies
 RUN composer install --optimize-autoloader --no-dev --ignore-platform-reqs
 
-# Laravel setup
-RUN php artisan key:generate && \
-    php artisan optimize:clear && \
-    php artisan config:cache && \
-    php artisan route:cache && \
-    php artisan view:cache
-
-# Permissions
+# Set permissions before running artisan commands
 RUN chown -R www-data:www-data storage bootstrap/cache && \
     chmod -R 775 storage bootstrap/cache
 
+# Create a temporary .env file for build
+RUN cp .env.example .env && \
+    sed -i 's/APP_KEY=.*/APP_KEY=base64:tmpkeyuntilruntime/' .env && \
+    php artisan key:generate && \
+    php artisan config:clear
+
+# The actual application key will be generated at runtime
+RUN rm .env
+
 EXPOSE 80
+
+# Runtime commands
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["apache2-foreground"]
